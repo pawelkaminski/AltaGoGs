@@ -14,6 +14,56 @@ class BaseView(TemplateView):
         game_fields = {'id': True, 'images.icon': True, '_id': False, 'title': True}
         return games_collection.find({'id': {'$in': ids_list}}, game_fields)
 
+    def game_no_series(self, game_id, limit=16):
+        with self.get_client() as client:
+            blacklist = {game_id}
+
+            db = client[settings.DB_NAME]
+            similarity_matrix_collection = db['similarityMatrix']
+            series_collection = db['series']
+            games_collection = db['product']
+
+            similarities = similarity_matrix_collection.find_one({'itemId': game_id})
+            if not similarities:
+                return []
+
+            similarities = similarities['similar']
+            games_ids = [
+                game['itemId']
+                for game in similarities
+            ]
+
+            series = series_collection.find({'id': {'$in': games_ids}})
+            series = {
+                s['id']: s['series']
+                for s in series
+            }
+
+            similarities = sorted(similarities, key=lambda item: item['score'], reverse=True)
+
+            sub_result = {}
+            for game in similarities:
+                if game['itemId'] in blacklist:
+                    continue
+
+                sub_result[game['itemId']] = game['score']
+
+                if len(sub_result) >= limit:
+                    break
+
+                if game['itemId'] in series:
+                    blacklist.union(series[game['itemId']])
+
+            games_ids = list(sub_result.keys())
+            games = self.get_games(games_collection, games_ids)
+            result = [
+                dict(game, score=sub_result[game['id']])
+                for game in games
+            ]
+            result = sorted(result, key=lambda item: item['score'], reverse=True)
+
+        return result
+
     def game_info(self, game_id, limit_similarities=16):
         with self.get_client() as client:
             db = client[settings.DB_NAME]
@@ -73,7 +123,6 @@ class BaseView(TemplateView):
             users_recommendations_collection = db['userRecommendations']
             games_collection = db['product']
             users_recommendations = list(users_recommendations_collection.find({'userId': user_id}))
-            print(users_recommendations)
             if users_recommendations:
                 users_recommendations = {
                     game['itemId']: game['score']
@@ -146,6 +195,5 @@ class SearchView(BaseView):
             request_text = request.GET['game_name']
             items = list(collection.find({'$text': {'$search': f'"{request_text}"'}}))
 
-        print(len(items))
         response.context_data['games'] = items
         return response
