@@ -186,9 +186,9 @@ class BaseView(TemplateView):
                 'played': self._process_game_list(user.get('played', []), games_collection),
                 'wishlist': self._process_game_list(user.get('wishlist', []), games_collection),
                 'ranked': self._process_game_list([key['itemId'] for key in user.get('ranked', [])], games_collection),
-                'games': games,
+                'games': self.filter_result(games),
             }
-
+            
         return return_dict
 
     def _process_game_list(self, game_list, games_collection):
@@ -205,7 +205,6 @@ class GameView(BaseView):
             game_id = int(request.GET['game_id'])
             game_info = self.game_info(game_id)
             game_info['similar_games'] = self.filter_result(game_info['similar_games'])
-            game_info['similar_games'] = game_info['similar_games']
         except KeyError as ex:
             print(ex)
             # TODO error for invalid key - no id given
