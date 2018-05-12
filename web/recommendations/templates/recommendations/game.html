@@ -2,14 +2,6 @@
 
 {% block content %}
 
-<div class="container container-fluid">
-    {% if game %}
-    <h1>{{ game.title }}</h1>
-    <p>
-        <img src="{{ game.img.href }}"/>
-    </p>
-    {% else %}
-    {% endif %}
-</div>
+{% include 'recommendations/game_page.html' %}
 
 {% endblock content %}
