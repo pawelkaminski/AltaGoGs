@@ -36,25 +36,7 @@
 {% endif %}
 
 {% if series %}
-
-<div class="container">
-    <h2 class="text-center">Series</h2>
-    {% for _, sim_game in series.items %}
-    {% if forloop.first %}<div class="row">{% endif %}
-    <div class="col-lg-2 fa-border">
-        <div>
-            <img src="{{ sim_game.images.icon}}" class="w-100"/>
-        </div>
-        <h3>{{ sim_game.title }}</h3>
-        <p>
-            <a href="{% url 'game'%}?game_id={{sim_game.id}}">
-            <i class="fa fa-info-circle fa-5x btn"></i>
-            </a>
-        </p>
-    </div>
-    {% if forloop.counter|divisibleby:6 %}</div><div class="row">{% endif %}
-    {% if forloop.last %}</div>{% endif %}
-{% endfor %}
+    {% include 'recommendations/game_list.html' with title='Series' games_list=series|get_items%}
 </div>
 
 {% endif %}

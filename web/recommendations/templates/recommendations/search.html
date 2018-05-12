@@ -2,6 +2,6 @@
 
 {% block content %}
 
-<h2>Matched Games</h2>
+{% include 'recommendations/game_list.html' with title='Search' games_list=games%}
 
 {% endblock content %}
