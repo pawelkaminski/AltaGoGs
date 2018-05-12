@@ -11,7 +11,7 @@ class BaseView(TemplateView):
 
     @staticmethod
     def get_games(games_collection, ids_list):
-        game_fields = {'id': True, 'images.icon': True, '_id': False, 'title': True}
+        game_fields = {'id': True, 'images.icon': True,  'images.logo': True, '_id': False, 'title': True}
         return games_collection.find({'id': {'$in': ids_list}}, game_fields)
 
     def game_no_series(self, game_id, limit=16):
@@ -52,7 +52,7 @@ class BaseView(TemplateView):
                     break
 
                 if game['itemId'] in series:
-                    blacklist.union(series[game['itemId']])
+                    blacklist = blacklist.union(series[game['itemId']])
 
             games_ids = list(sub_result.keys())
             games = self.get_games(games_collection, games_ids)
@@ -64,7 +64,41 @@ class BaseView(TemplateView):
 
         return result
 
-    def game_info(self, game_id, limit_similarities=16):
+    def filter_result(self, items):
+        blacklist = set()
+
+        games_ids = [
+            game['id']
+            for game in items
+        ]
+
+        with self.get_client() as client:
+            db = client[settings.DB_NAME]
+            series_collection = db['series']
+
+            series = series_collection.find({'id': {'$in': games_ids}})
+
+            series = {
+                s['id']: s['series']
+                for s in series
+            }
+
+            result = []
+            for game in items:
+                gid = game['id']
+
+                if gid in blacklist:
+                    continue
+
+                result.append(game)
+                if gid in series:
+                    blacklist = blacklist.union(map(int, series[gid]))
+                else:
+                    blacklist.add(gid)
+
+        return result
+
+    def game_info(self, game_id):
         with self.get_client() as client:
             db = client[settings.DB_NAME]
             games_collection = db['product']
@@ -95,7 +129,6 @@ class BaseView(TemplateView):
                     for similar in similarities
                     if (similar['itemId'] != game_id) and (similar['itemId'] not in series_games)
                 ]
-                similarities = similarities[:limit_similarities]
                 similar_ids = [
                     similar[0]
                     for similar in similarities
@@ -154,11 +187,18 @@ class GameView(BaseView):
         try:
             game_id = int(request.GET['game_id'])
             game_info = self.game_info(game_id)
+            game_info['similar_games'] = self.filter_result(game_info['similar_games'])
+            game_info['similar_games'] = game_info['similar_games']
         except KeyError as ex:
+            print(ex)
             # TODO error for invalid key - no id given
             return response
         except ValueError as ex:
+            print(ex)
             # TODO invalid key type
+            return response
+        except Exception as ex:
+            print(ex)
             return response
 
         response.context_data.update(game_info)
@@ -176,10 +216,15 @@ class UserView(BaseView):
             user_id = request.GET['user_id']
             user_info = self.user_info(user_id)
         except KeyError as ex:
+            print(ex)
             # TODO error for invalid key - no id given
             return response
         except ValueError as ex:
+            print(ex)
             # TODO invalid key type
+            return response
+        except Exception as ex:
+            print(ex)
             return response
 
         response.context_data.update(user_info)
