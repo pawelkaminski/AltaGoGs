@@ -12,6 +12,8 @@ USER_RECOMMENDATIONS_COLLECTION_NAME = 'userRecommendations'
 USER_RECOMMENDATIONS_CUTOFF = 50
 USERS_COLLECTION_NAME = 'users'
 FRIENDS_COLLECTION_NAME = 'friends'
+OWNED_WEIGHT = 1
+PLAYED_WEIGHT = 3
 
 
 class UserRecommendations:
@@ -50,13 +52,41 @@ class UserRecommendations:
 
     def _load_friends(self, collection):
         for friend in collection.find():
-            self.friend_games[friend['userId']] = set([int(owned) for owned in friend['owned']])
+            owned = set([int(owned) for owned in friend['owned']])
+            played = set([int(played) for played in friend['played']])
+            self.friend_games[friend['userId']] = {
+                'owned': owned,
+                'played': played,
+            }
 
     def _process_users(self):
         self._process_owned_games(self.user_games)
 
     def _process_friends(self):
-        self._process_owned_games(self.friend_games)
+        for user, friend_games in self.friend_games.items():
+            n = 0
+            owned = friend_games['owned']
+            played = friend_games['played']
+            user_counter = Counter()
+            for game in owned:
+                if game in self.game_similarity:
+                    n += OWNED_WEIGHT
+                user_counter += self.game_similarity[game]
+
+            for game in played:
+                weight = PLAYED_WEIGHT - OWNED_WEIGHT
+                if game in self.game_similarity:
+                    n += weight
+                user_counter += Counter({
+                    item_id: score * weight
+                    for item_id, score in self.game_similarity[game].items()
+                })
+
+            self.personalized_recommendations[user] = [
+                (item_id, score / n)
+                for item_id, score in user_counter.most_common()
+                if item_id not in owned
+            ][:USER_RECOMMENDATIONS_CUTOFF]
 
     def _process_owned_games(self, user_games):
         for user, games in user_games.items():
