@@ -195,14 +195,19 @@ class BaseView(TemplateView):
             if not user:
                 user = friend_collection.find_one(query)
 
+            ranking = {game['itemId']: game['score'] for game in user.get('ranked', [])}
+
             return_dict = {
                 'owned': self._process_game_list(user.get('owned', []), games_collection),
                 'played': self._process_game_list(user.get('played', []), games_collection),
                 'wishlist': self._process_game_list(user.get('wishlist', []), games_collection),
-                'ranked': self._process_game_list([key['itemId'] for key in user.get('ranked', [])], games_collection),
+                'ranked': self._process_game_list(list(ranking.keys()), games_collection),
                 'games': self.filter_result(games),
             }
-            
+
+            for el in return_dict['ranked']:
+                el['score'] = ranking[el['id']]/10
+
         return return_dict
 
     def _process_game_list(self, game_list, games_collection):
