@@ -2,7 +2,11 @@
 
 {% block content %}
 
-<h1>Hello world!!</h1>
-<h2>Game</h2>
+<div class="container container-fluid">
+    <h1>{{ data.title }}</h1>
+    <p>
+        <img src="{{ data.img.href }}"/>
+    </p>
+</div>
 
 {% endblock content %}
