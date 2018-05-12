@@ -4,3 +4,6 @@ pymongo
 beautifulsoup4
 gensim==3.4.0
 sklearn
+djangorestframework
+markdown
+django-filter
