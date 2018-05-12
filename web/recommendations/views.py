@@ -11,8 +11,18 @@ class BaseView(TemplateView):
 
     @staticmethod
     def get_games(games_collection, ids_list):
-        game_fields = {'id': True, 'images.icon': True,  'images.logo': True, '_id': False, 'title': True}
-        return games_collection.find({'id': {'$in': ids_list}}, game_fields)
+        game_fields = {'id': True, 'images.icon': True, 'images.logo': True, '_id': False, 'title': True}
+        games = list(games_collection.find({'id': {'$in': ids_list}}, game_fields))
+        for game in games:
+            if 'images' in game:
+                game['image'] = game['images']
+            if 'image' in game:
+                if 'icon' in game['image']:
+                    game['img'] = game['image']['icon']
+                elif 'logo' in game['image']:
+                    game['img'] = game['image']['logo']
+
+        return games
 
     def game_no_series(self, game_id, limit=16):
         with self.get_client() as client:
