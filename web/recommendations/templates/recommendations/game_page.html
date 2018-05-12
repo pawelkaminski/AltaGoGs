@@ -11,34 +11,11 @@
 </center>
 
 {% if similar_games %}
-
-<div class="container">
-    <h2 class="text-center">Similar</h2>
-    {% for sim_game in similar_games %}
-    {% if forloop.first %}<div class="row">{% endif %}
-    <div class="col-lg-2 fa-border">
-        <p>
-            <img src="{{ sim_game.images.icon}}" class="w-100"/>
-        </p>
-        <h3>{{ sim_game.title }}</h3>
-        <p>
-            <a href="{% url 'game'%}?game_id={{sim_game.id}}">
-            <i class="fa fa-info-circle fa-5x btn"></i>
-            </a>
-        </p>
-        <p>Hit: {{ sim_game.score }}</p>
-    </div>
-    {% if forloop.counter|divisibleby:6 %}</div><div class="row">{% endif %}
-    {% if forloop.last %}</div>{% endif %}
-{% endfor %}
-</div>
-
+    {% include 'recommendations/recommendation_list.html' with title='Similar' games=similar_games%}
 {% endif %}
 
 {% if series %}
     {% include 'recommendations/game_list.html' with title='Series' games_list=series|get_items%}
-</div>
-
 {% endif %}
 
 {% else %}
