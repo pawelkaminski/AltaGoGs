@@ -14,23 +14,24 @@ class UserDownloader:
 
     # it is faster to copy datafrom from browser for 3 people than write code
     def download(self):
-        self.get_user()
+        #self.get_user()
         self.get_friends()
 
     def get_user(self):
         nick = 'Super_Cezar'
         # https://www.gog.com/user/data/games
-        owned = []
+        owned = [1207658924,1207658930,1207666873,1442827661,1495134320,1801418160,1640424747]
         # https://www.gog.com/user/games_rating.json
-        ranked = {}
+        ranked = {"1207658697":50}
         # https://embed.gog.com/user/wishlist.json
+        true = None
         wishlist = {}
 
         user = {
             'userId': nick,
             'owned': owned,
-            'ranked': [{'itemId': key, 'score': val} for key, val in ranked.items()],
-            'wishlist': [key for key, _ in wishlist.items()],
+            'ranked': [{'itemId': int(key), 'score': val} for key, val in ranked.items()],
+            'wishlist': [int(key) for key, _ in wishlist.items()],
         }
         self._store_result_at_mongo(self.USERS_COLLECTION_NAME, user)
 
