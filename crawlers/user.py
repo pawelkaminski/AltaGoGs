@@ -1,45 +1,70 @@
+import glob
+import os
+
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
-import requests
-import time
 
 
 class UserDownloader:
     REQUEST_WAIT = 0.01
-    DATABASE_NAME = 'gog'
+    DATABASE_NAME = 'gog2'
 
     USERS_COLLECTION_NAME = 'users'
     FRIENDS_COLLECTION_NAME = 'friends'
 
-    # it is faster to copy datafrom browser for 5 people
+    # it is faster to copy datafrom from browser for 3 people than write code
     def download(self):
-        self.get_user()
+        #self.get_user()
         self.get_friends()
 
     def get_user(self):
         nick = 'Super_Cezar'
         # https://www.gog.com/user/data/games
-        owned = []
+        owned = [1207658924,1207658930,1207666873,1442827661,1495134320,1801418160,1640424747]
         # https://www.gog.com/user/games_rating.json
-        ranked = {}
+        ranked = {"1207658697":50}
         # https://embed.gog.com/user/wishlist.json
-        wishlist = []
+        true = None
+        wishlist = {}
 
         user = {
             'userId': nick,
             'owned': owned,
-            'ranked': {{'itemId': key, 'score': val} for key, val in ranked.items()},
-            'wishlist': wishlist,
+            'ranked': [{'itemId': int(key), 'score': val} for key, val in ranked.items()],
+            'wishlist': [int(key) for key, _ in wishlist.items()],
         }
         self._store_result_at_mongo(self.USERS_COLLECTION_NAME, user)
 
     def get_friends(self):
-        htmls = []
-        for html in htmls:
-            self._get_friend(html)
+        os.chdir('htmls')
+        for file in glob.glob('*.html'):
+            with open(file, encoding='utf8') as f:
+                contents = f.read()
+                self._get_friend(contents, file.split('.')[0])
 
-    def _get_friend(self, html):
-        pass
+    def _get_friend(self, html, user_name):
+        friend = {
+            'userId': user_name,
+            'owned': [],
+            'played': [],
+        }
+        soup = BeautifulSoup(html, 'html.parser')
+        for item in soup.findAll('div', class_='games-matcher__row'):
+            id_finder = item.find('div', class_='games-matcher__column--game')
+            item_id = id_finder.attrs['prof-game']
+            friend['owned'].append(item_id)
+            time_spent = item.find_all('div', class_='games-matcher__column--statistics')
+            if self._is_any_time_spent(time_spent):
+                friend['played'].append(item_id)
+
+        self._store_result_at_mongo(self.FRIENDS_COLLECTION_NAME, friend)
+
+    def _is_any_time_spent(self, statistics):
+        for stat in statistics:
+            for binding in stat.find_all('span', class_='ng-binding'):
+                if binding.contents[0] not in ('0%', '0m'):
+                    return True
+        return False
 
     def _store_result_at_mongo(self, collection_name, item):
         with MongoClient() as client:

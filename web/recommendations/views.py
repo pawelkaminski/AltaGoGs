@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.views.generic import TemplateView
+from django.conf import settings
 import pymongo
 
 
@@ -13,7 +14,7 @@ class BaseView(TemplateView):
         game_fields = {'id': True, 'images.icon': True, '_id': False, 'title': True}
 
         with self.get_client() as client:
-            db = client[settings.DBNAME]
+            db = client[settings.DB_NAME]
             series_collection = db['series']
             games_collection = db['product']
             similarity_matrix_collection = db['similarityMatrix']
@@ -69,7 +70,7 @@ class GameView(BaseView):
         response = super().get(request, *args, **kwargs)
 
         with self.get_client() as client:
-            db = client['gog']
+            db = client[settings.DB_NAME]
             collection = db['product']
             item = collection.find_one({'id': int(request.GET['game_id'])})
 

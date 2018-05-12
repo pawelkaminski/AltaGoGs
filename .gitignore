@@ -106,3 +106,8 @@ venv.bak/
 
 # pycharm
 .idea/
+
+# crawlers
+crawlers/htmls/
+
+*.sqlite3

@@ -6,7 +6,7 @@ import time
 
 class ContentDownloader:
     REQUEST_WAIT = 0.01
-    DATABASE_NAME = 'gog'
+    DATABASE_NAME = 'gog2'
 
     PRODUCT_COLLECTION_NAME = 'product'
     RANK_COLLECTION_NAME = 'rank'
@@ -42,7 +42,7 @@ class ContentDownloader:
             self.item_ids.add(product['_embedded']['product']['id'])
 
     def get_items_description(self):
-        url_product = 'https://api.gog.com/v1/games/{}'
+        url_product = 'https://api.gog.com/products/{}?expand=description&locale=en'
         for enum_id, item in enumerate(self.item_ids):
             if enum_id % 5 == 0:
                 print(f'Prosessed {enum_id} items ~ {enum_id/2450.}%')
@@ -50,7 +50,7 @@ class ContentDownloader:
             result = self.get_item(url_product.format(item), self.PRODUCT_COLLECTION_NAME)
 
             try:
-                url = result.json()['_links']['store']['href']
+                url = result.json()['links']['product_card']
             except Exception as e:
                 print(f'no store link {e}')
                 continue
