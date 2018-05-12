@@ -120,22 +120,28 @@ class BaseView(TemplateView):
     def user_info(self, user_id):
         with self.get_client() as client:
             db = client[settings.DB_NAME]
-            users_recommendations_collection = db['userRecommendations']
+            users_collection = db['userRecommendations']
             games_collection = db['product']
-            users_recommendations = list(users_recommendations_collection.find({'userId': user_id}))
-            if users_recommendations:
-                users_recommendations = {
-                    game['itemId']: game['score']
-                    for game in users_recommendations[0]['recommendedItems']
-                }
-                games = self.get_games(games_collection, list(users_recommendations.keys()))
-                games = [
-                    dict(game, score=users_recommendations[game['id']])
-                    for game in games
-                ]
-            else:
-                games = []
 
+            query = {'userId': user_id}
+            recommendations = users_collection.find_one(query)
+
+            if not recommendations:
+                return {}
+
+            users_recommendations = {
+                game['itemId']: game['score']
+                for game in recommendations['recommendedItems']
+            }
+
+            plain_games = self.get_games(games_collection, list(users_recommendations.keys()))
+            games = [
+                dict(game, score=users_recommendations[game['id']])
+                for game in plain_games
+            ]
+
+            games = sorted(games, key=lambda game: game['score'], reverse=True)
+            
         return {'games': games}
 
 
