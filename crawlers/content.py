@@ -1,15 +1,16 @@
+from bs4 import BeautifulSoup
 from pymongo import MongoClient
 import requests
 import time
 
 
 class ContentDownloader:
-
-    REQUEST_WAIT = 0.03
+    REQUEST_WAIT = 0.01
     DATABASE_NAME = 'gog'
 
     PRODUCT_COLLECTION_NAME = 'product'
     RANK_COLLECTION_NAME = 'rank'
+    SERIES_COLLECTION_NAME = 'series'
 
     def __init__(self):
         self.item_ids = set()
@@ -42,13 +43,69 @@ class ContentDownloader:
 
     def get_items_description(self):
         url_product = 'https://api.gog.com/v1/games/{}'
-        for item in self.item_ids:
-            self.get_item(url_product.format(item), self.PRODUCT_COLLECTION_NAME)
+        for enum_id, item in enumerate(self.item_ids):
+            if enum_id % 5 == 0:
+                print(f'Prosessed {enum_id} items ~ {enum_id/2450.}%')
+
+            result = self.get_item(url_product.format(item), self.PRODUCT_COLLECTION_NAME)
+
+            try:
+                url = result.json()['_links']['store']['href']
+            except Exception as e:
+                print(f'no store link {e}')
+                continue
+
+            self.get_product_card_data(url=url, item_id=item)
 
     def get_item(self, url, collection_name):
         result = self._run_request(url)
         self._store_result_at_mongo(collection_name, result.json())
         return result
+
+    def get_product_card_data(self, url, item_id):
+        page_result = self._run_request(url)
+
+        try:
+            self.get_total_rank(page_result, item_id)
+        except Exception as e:
+            print(e, 'soup problem')
+
+        try:
+            self.get_series(page_result, item_id)
+        except Exception as e:
+            print(e, 'soup problem')
+
+    def get_total_rank(self, page_result, item_id):
+        item = {
+            'id': item_id
+        }
+        soup = BeautifulSoup(page_result.content, 'html.parser')
+        item_class = soup.find('div', class_='average-rating')
+        for metadata in item_class.find_all('meta'):
+            if metadata.attrs['itemprop'] == 'ratingValue':
+                item['ratingValue'] = metadata.attrs['content']
+            if metadata.attrs['itemprop'] == 'ratingCount':
+                item['ratingCount'] = metadata.attrs['content']
+
+        self._store_result_at_mongo(self.RANK_COLLECTION_NAME, item)
+
+    def get_series(self, page_result, item_id):
+        item = {
+            'id': item_id,
+            'series': [],
+        }
+        soup = BeautifulSoup(page_result.content, 'html.parser')
+        item_class = soup.find('div', class_='module--buy-series')
+
+        if item_class is None:
+            return
+
+        for product in item_class.find_all('div', class_='product-state-holder'):
+            if product.attrs['gog-product']:
+                item['series'].append(product.attrs['gog-product'])
+
+        if item['series']:
+            self._store_result_at_mongo(self.SERIES_COLLECTION_NAME, item)
 
     def _store_result_at_mongo(self, collection_name, item):
         with MongoClient() as client:
