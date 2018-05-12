@@ -17,8 +17,13 @@ class BaseView(TemplateView):
     def game_info(self, game_id, limit_similarities=16):
         with self.get_client() as client:
             db = client[settings.DB_NAME]
-            series_collection = db['series']
             games_collection = db['product']
+
+            game = games_collection.find_one({'id': game_id})
+            if not game:
+                return {}
+
+            series_collection = db['series']
             similarity_matrix_collection = db['similarityMatrix']
             series = series_collection.find_one({'id': game_id})
             if series:
@@ -27,36 +32,34 @@ class BaseView(TemplateView):
                     game['id']: game
                     for game in series_games
                 }
-                similarities = list(similarity_matrix_collection.find({'itemId': game_id}))
-                if similarities:
-                    similarities = similarities[0]['similar']
-                    similarities = sorted(similarities, key=lambda item: item['score'], reverse=True)
-                    similarities = [
-                        (similar['itemId'], similar['score'])
-                        for similar in similarities
-                        if (similar['itemId'] != game_id) and (similar['itemId'] not in series_games)
-                    ]
-                    similarities = similarities[:limit_similarities]
-                    similar_ids = [
-                        similar[0]
-                        for similar in similarities
-                    ]
-                    similarities = {game[0]: game[1] for game in similarities}
-                    similar_games = list(self.get_games(games_collection, similar_ids))
-                    similar_games = [
-                        dict(game, score=similarities[game['id']])
-                        for game in similar_games
-                    ]
-                    similar_games = sorted(similar_games, key=lambda item: item['score'], reverse=True)
-
-                else:
-                    similar_games = []
+                del series_games[game_id]
             else:
                 series_games = {}
-                similar_games = []
 
-        game = series_games[game_id]
-        del series_games[game_id]
+            similarities = list(similarity_matrix_collection.find({'itemId': game_id}))
+            if similarities:
+                similarities = similarities[0]['similar']
+                similarities = sorted(similarities, key=lambda item: item['score'], reverse=True)
+                similarities = [
+                    (similar['itemId'], similar['score'])
+                    for similar in similarities
+                    if (similar['itemId'] != game_id) and (similar['itemId'] not in series_games)
+                ]
+                similarities = similarities[:limit_similarities]
+                similar_ids = [
+                    similar[0]
+                    for similar in similarities
+                ]
+                similarities = {g[0]: g[1] for g in similarities}
+                similar_games = list(self.get_games(games_collection, similar_ids))
+                similar_games = [
+                    dict(game, score=similarities[game['id']])
+                    for game in similar_games
+                ]
+                similar_games = sorted(similar_games, key=lambda item: item['score'], reverse=True)
+
+            else:
+                similar_games = []
 
         return {
             'game': game,

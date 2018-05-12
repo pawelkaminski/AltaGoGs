@@ -121,4 +121,4 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-DB_NAME = 'gog2'
+DB_NAME = 'gog'
