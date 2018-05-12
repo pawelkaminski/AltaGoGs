@@ -14,6 +14,8 @@ USERS_COLLECTION_NAME = 'users'
 FRIENDS_COLLECTION_NAME = 'friends'
 OWNED_WEIGHT = 1
 PLAYED_WEIGHT = 3
+MAX_SCORE = 50
+SCORE_BIAS = 25
 
 
 class UserRecommendations:
@@ -48,7 +50,14 @@ class UserRecommendations:
 
     def _load_users(self, collection):
         for user in collection.find():
-            self.user_games[user['userId']] = set(user['owned'])
+            owned = set(user['owned'])
+            wishlist = set(user['wishlist'])
+            ranked = user['ranked']
+            self.user_games[user['userId']] = {
+                'owned': owned,
+                'wishlist': wishlist,
+                'ranked': ranked,
+            }
 
     def _load_friends(self, collection):
         for friend in collection.find():
@@ -60,7 +69,30 @@ class UserRecommendations:
             }
 
     def _process_users(self):
-        self._process_owned_games(self.user_games)
+        for user, games in self.user_games.items():
+            owned = games['owned']
+            wishlist = games['wishlist']
+            ranked = games['ranked']
+            ranked_ids = set([item['itemId'] for item in ranked])
+            n = 0
+            user_counter = Counter()
+            for game in (owned | wishlist) - ranked_ids:
+                if game in self.game_similarity:
+                    n += 1
+                    user_counter += self.game_similarity[game]
+
+            for game in ranked:
+                game_id = game['itemId']
+                score = game['score']
+                weight = self._calculate_score_weight(score)
+                if game_id in self.game_similarity:
+                    n += weight
+                    user_counter += Counter({
+                        item_id: score * weight
+                        for item_id, score in self.game_similarity[game_id].items()
+                    })
+
+            self._cache_top_recommendations(user, owned, n, user_counter)
 
     def _process_friends(self):
         for user, friend_games in self.friend_games.items():
@@ -71,35 +103,29 @@ class UserRecommendations:
             for game in owned:
                 if game in self.game_similarity:
                     n += OWNED_WEIGHT
-                user_counter += self.game_similarity[game]
+                    user_counter += self.game_similarity[game]
 
             for game in played:
                 weight = PLAYED_WEIGHT - OWNED_WEIGHT
                 if game in self.game_similarity:
                     n += weight
-                user_counter += Counter({
-                    item_id: score * weight
-                    for item_id, score in self.game_similarity[game].items()
-                })
+                    user_counter += Counter({
+                        item_id: score * weight
+                        for item_id, score in self.game_similarity[game].items()
+                    })
 
-            self.personalized_recommendations[user] = [
-                (item_id, score / n)
-                for item_id, score in user_counter.most_common()
-                if item_id not in owned
-            ][:USER_RECOMMENDATIONS_CUTOFF]
+            self._cache_top_recommendations(user, owned, n, user_counter)
 
-    def _process_owned_games(self, user_games):
-        for user, games in user_games.items():
-            n = len(games)
-            user_counter = Counter()
-            for game in games:
-                user_counter += self.game_similarity[game]
+    def _cache_top_recommendations(self, user, owned, n, user_counter):
+        self.personalized_recommendations[user] = [
+            (item_id, score / n)
+            for item_id, score in user_counter.most_common()
+            if item_id not in owned
+        ][:USER_RECOMMENDATIONS_CUTOFF]
 
-            self.personalized_recommendations[user] = [
-                (item_id, score / n)
-                for item_id, score in user_counter.most_common()
-                if item_id not in games
-            ][:USER_RECOMMENDATIONS_CUTOFF]
+    @classmethod
+    def _calculate_score_weight(cls, score):
+        return (score - SCORE_BIAS) / MAX_SCORE
 
     def _save_recommendations(self, collection):
         collection.drop()
