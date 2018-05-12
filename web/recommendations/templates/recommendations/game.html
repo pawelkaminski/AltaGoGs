@@ -3,10 +3,13 @@
 {% block content %}
 
 <div class="container container-fluid">
-    <h1>{{ data.title }}</h1>
+    {% if game %}
+    <h1>{{ game.title }}</h1>
     <p>
-        <img src="{{ data.img.href }}"/>
+        <img src="{{ game.img.href }}"/>
     </p>
+    {% else %}
+    {% endif %}
 </div>
 
 {% endblock content %}

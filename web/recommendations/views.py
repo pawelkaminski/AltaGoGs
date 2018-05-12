@@ -23,10 +23,10 @@ class GameView(BaseView):
         }
     }
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['data'] = self.example_data
-        return context
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        response.context_data['game'] = self.example_data
+        return response
 
 
 class SeriesView(BaseView):
