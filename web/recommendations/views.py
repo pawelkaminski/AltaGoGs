@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.views.generic import TemplateView
 import pymongo
 
@@ -8,26 +9,56 @@ class BaseView(TemplateView):
     def get_client(self) -> pymongo.MongoClient:
         return pymongo.MongoClient(self.mongo_path)
 
-    def game_info(self, game_id):
+    def game_info(self, game_id, limit_similarities=16):
+        game_fields = {'id': True, 'images.icon': True, '_id': False, 'title': True}
+
         with self.get_client() as client:
-            db = client['gog']
+            db = client[settings.DBNAME]
             series_collection = db['series']
             games_collection = db['product']
+            similarity_matrix_collection = db['similarityMatrix']
             series = series_collection.find_one({'id': game_id})
             if series:
-                series_games = games_collection.find({'id': {'$in': list(map(int, series['series']))}})
+                series_games = games_collection.find({'id': {'$in': list(map(int, series['series']))}}, game_fields)
                 series_games = {
                     game['id']: game
                     for game in series_games
                 }
+                similarities = list(similarity_matrix_collection.find({'itemId': game_id}))
+                if similarities:
+                    similarities = similarities[0]['similar']
+                    similarities = sorted(similarities, key=lambda item: item['score'], reverse=True)
+                    similarities = [
+                        (similar['itemId'], similar['score'])
+                        for similar in similarities
+                        if (similar['itemId'] != game_id) and (similar['itemId'] not in series_games)
+                    ]
+                    similarities = similarities[:limit_similarities]
+                    similar_ids = [
+                        similar[0]
+                        for similar in similarities
+                    ]
+                    similarities = {game[0]: game[1] for game in similarities}
+                    similar_games = list(games_collection.find({'id': {'$in': similar_ids}}, game_fields))
+                    similar_games = [
+                        dict(game, score=similarities[game['id']])
+                        for game in similar_games
+                    ]
+                    similar_games = sorted(similar_games, key=lambda item: item['score'], reverse=True)
+
+                else:
+                    similar_games = []
             else:
                 series_games = {}
+                similar_games = []
+
         game = series_games[game_id]
         del series_games[game_id]
 
         return {
             'game': game,
-            'series': series_games
+            'series': series_games,
+            'similar_games': similar_games,
         }
 
 
@@ -51,16 +82,14 @@ class GameView(BaseView):
         try:
             game_id = int(request.GET['game_id'])
             game_info = self.game_info(game_id)
-        except KeyError:
+        except KeyError as ex:
             # TODO error for invalid key - no id given
             return response
-        except ValueError:
+        except ValueError as ex:
             # TODO invalid key type
             return response
 
         response.context_data.update(game_info)
-
-        print(response.context_data)
 
         return response
 
