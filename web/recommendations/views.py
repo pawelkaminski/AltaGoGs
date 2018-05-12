@@ -97,3 +97,22 @@ class GameView(BaseView):
 
 class UserView(BaseView):
     template_name = 'recommendations/user.html'
+
+
+class SearchView(BaseView):
+    template_name = 'recommendations/search.html'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+
+        with self.get_client() as client:
+            db = client[settings.DB_NAME]
+            collection = db['product']
+            # BEWARE: requires text index
+            # db.product.createIndex({'title': 'text'})
+            request_text = request.GET['game_name']
+            items = list(collection.find({'$text': {'$search': f'"{request_text}"'}}))
+
+        print(len(items))
+        response.context_data['games'] = items
+        return response
