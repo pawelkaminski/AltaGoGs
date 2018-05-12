@@ -1,0 +1,2 @@
+# AltaGoGs
+GoG hackathon repo
