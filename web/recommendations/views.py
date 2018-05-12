@@ -10,9 +10,12 @@ class BaseView(TemplateView):
     def get_client(self) -> pymongo.MongoClient:
         return pymongo.MongoClient(self.mongo_path)
 
-    def game_info(self, game_id, limit_similarities=16):
+    @staticmethod
+    def get_games(games_collection, ids_list):
         game_fields = {'id': True, 'images.icon': True, '_id': False, 'title': True}
+        return games_collection.find({'id': {'$in': ids_list}}, game_fields)
 
+    def game_info(self, game_id, limit_similarities=16):
         with self.get_client() as client:
             db = client[settings.DB_NAME]
             series_collection = db['series']
@@ -20,7 +23,7 @@ class BaseView(TemplateView):
             similarity_matrix_collection = db['similarityMatrix']
             series = series_collection.find_one({'id': game_id})
             if series:
-                series_games = games_collection.find({'id': {'$in': list(map(int, series['series']))}}, game_fields)
+                series_games = self.get_games(games_collection, list(map(int, series['series'])))
                 series_games = {
                     game['id']: game
                     for game in series_games
@@ -40,7 +43,7 @@ class BaseView(TemplateView):
                         for similar in similarities
                     ]
                     similarities = {game[0]: game[1] for game in similarities}
-                    similar_games = list(games_collection.find({'id': {'$in': similar_ids}}, game_fields))
+                    similar_games = list(self.get_games(games_collection, similar_ids))
                     similar_games = [
                         dict(game, score=similarities[game['id']])
                         for game in similar_games
@@ -62,20 +65,31 @@ class BaseView(TemplateView):
             'similar_games': similar_games,
         }
 
+    def user_info(self, user_id):
+        with self.get_client() as client:
+            db = client[settings.DB_NAME]
+            users_recommendations_collection = db['userRecommendations']
+            games_collection = db['product']
+            users_recommendations = list(users_recommendations_collection.find({'userId': user_id}))
+            print(users_recommendations)
+            if users_recommendations:
+                users_recommendations = {
+                    game['itemId']: game['score']
+                    for game in users_recommendations[0]['recommendedItems']
+                }
+                games = self.get_games(games_collection, list(users_recommendations.keys()))
+                games = [
+                    dict(game, score=users_recommendations[game['id']])
+                    for game in games
+                ]
+            else:
+                games = []
+
+        return {'games': games}
+
 
 class GameView(BaseView):
     template_name = 'recommendations/game.html'
-
-    def get(self, request, *args, **kwargs):
-        response = super().get(request, *args, **kwargs)
-
-        with self.get_client() as client:
-            db = client[settings.DB_NAME]
-            collection = db['product']
-            item = collection.find_one({'id': int(request.GET['game_id'])})
-
-        response.context_data['game'] = item
-        return response
 
     def get(self, request, *args, **kwargs):
         response = super().get(request, *args, **kwargs)
@@ -97,3 +111,20 @@ class GameView(BaseView):
 
 class UserView(BaseView):
     template_name = 'recommendations/user.html'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+
+        try:
+            user_id = request.GET['user_id']
+            user_info = self.user_info(user_id)
+        except KeyError as ex:
+            # TODO error for invalid key - no id given
+            return response
+        except ValueError as ex:
+            # TODO invalid key type
+            return response
+
+        response.context_data.update(user_info)
+
+        return response
