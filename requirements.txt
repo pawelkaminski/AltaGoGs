@@ -3,5 +3,4 @@ requests
 pymongo
 beautifulsoup4
 gensim==3.4.0
-pymongo
 sklearn
