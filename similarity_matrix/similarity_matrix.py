@@ -14,11 +14,16 @@ MONGO_HOST = 'localhost'
 DB_NAME = 'gog'
 GAMES_COLLECTION_NAME = 'product'
 SIMILARITY_COLLECTION_NAME = 'similarityMatrix'
+RATING_COLLECTION_NAME = 'rank'
 SIMILARITY_CUTOFF = 200
+MAX_GAME_RATING = 5
+TEXT_SIMILARITY_FACTOR = 0.7
+RATING_FACTOR = 1 - TEXT_SIMILARITY_FACTOR
 
 
 class SimilarityMatrix:
     def __init__(self):
+        self.game_ratings = {}
         self.game_order = {}
         self.game_vector = {}
         self.game_similar = defaultdict(Counter)
@@ -27,12 +32,19 @@ class SimilarityMatrix:
     def compute(self):
         self._load_model()
         with pymongo.MongoClient(MONGO_HOST) as client:
+            self._get_game_ratings(client)
             self._calculate_game_vectors(client)
             self._calculate_similars()
             self._push_similarity(client)
 
     def _load_model(self):
         self.text_model = Doc2Vec.load(TEXT_MODEL)
+
+    def _get_game_ratings(self, client):
+        rank_collection = client[DB_NAME][RATING_COLLECTION_NAME]
+        for game in rank_collection.find(no_cursor_timeout=True):
+            if 'ratingValue' in game:
+                self.game_ratings[game['id']] = float(game['ratingValue'])
 
     def _calculate_game_vectors(self, client):
         games_collection = client[DB_NAME][GAMES_COLLECTION_NAME]
@@ -61,13 +73,17 @@ class SimilarityMatrix:
         bulk = []
         for game_id, similarities in self.game_similar.items():
             top_similar = similarities.most_common(SIMILARITY_CUTOFF)
+            similar = []
+            for item_id, score in top_similar:
+                if item_id in self.game_ratings:
+                    game_rating = self.game_ratings[item_id]
+                    score = score * TEXT_SIMILARITY_FACTOR + (game_rating / MAX_GAME_RATING) * RATING_FACTOR
+                similar.append({'itemId': item_id, 'score': float(score)})
+
             bulk.append(
                 pymongo.InsertOne({
                     'itemId': game_id,
-                    'similar': [
-                        {'itemId': item_id, 'score': float(score)}
-                        for item_id, score in top_similar
-                    ]
+                    'similar': sorted(similar, key=lambda x: x['score'], reverse=True)
                 })
             )
 
