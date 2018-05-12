@@ -2,11 +2,31 @@
 
 {% block content %}
 
-<h1>Hello world!!</h1>
-<h2>User</h2>
+<h2>User: </h2>
 
 {% if games %}
-{{ games }}
+
+<div class="container">
+    <h2 class="text-center">Similar</h2>
+    {% for sim_game in games %}
+    {% if forloop.first %}<div class="row">{% endif %}
+    <div class="col-lg-2 fa-border">
+        <p>
+            <img src="{{ sim_game.images.icon}}" class="w-100"/>
+        </p>
+        <h3>{{ sim_game.title }}</h3>
+        <p>
+            <a href="{% url 'game'%}?game_id={{sim_game.id}}">
+            <i class="fa fa-info-circle fa-5x btn"></i>
+            </a>
+        </p>
+        <p>Score: {{ sim_game.score }}</p>
+    </div>
+    {% if forloop.counter|divisibleby:6 %}</div><div class="row">{% endif %}
+    {% if forloop.last %}</div>{% endif %}
+{% endfor %}
+</div>
+
 {% endif %}
 
 {% endblock content %}
