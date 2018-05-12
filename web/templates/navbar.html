@@ -13,6 +13,15 @@
         </ul>
         <ul class="navbar-nav">
             <li class="navbar-nav">
+                <form class="form-inline my-2 my-lg-0" action="{% url 'search' %}" method="GET">
+                    <input class="form-control mr-sm-2" type="search" placeholder="Game name" aria-label="Search"
+                           name="game_name">
+                    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </form>
+            </li>
+            <li class="navbar-nav">
                 <form class="form-inline my-2 my-lg-0" action="{% url 'game' %}" method="GET">
                     <input class="form-control mr-sm-2" type="search" placeholder="Game ID" aria-label="Search"
                            name="game_id">
