@@ -1,4 +1,7 @@
-from collections import Counter
+from collections import (
+    Counter,
+    defaultdict,
+)
 
 import pymongo
 
@@ -7,13 +10,13 @@ DB_NAME = 'gog'
 SIMILARITY_COLLECTION_NAME = 'similarityMatrix'
 USER_RECOMMENDATIONS_COLLECTION_NAME = 'userRecommendations'
 USER_RECOMMENDATIONS_CUTOFF = 50
-USERS_COLLECTION_NAME = 'user'
+USERS_COLLECTION_NAME = 'users'
 FRIENDS_COLLECTION_NAME = 'friends'
 
 
 class UserRecommendations:
     def __init__(self):
-        self.game_similarity = {}
+        self.game_similarity = defaultdict(Counter)
         self.user_games = {}
         self.friend_games = {}
         self.personalized_recommendations = {}
@@ -38,7 +41,8 @@ class UserRecommendations:
                 (similar['itemId'], similar['score'])
                 for similar in game['similar']
             ]
-            self.game_similarity[game_id] = Counter(similar_games)
+
+            self.game_similarity[game_id] = Counter(dict(similar_games))
 
     def _load_users(self, collection):
         for user in collection.find():
@@ -46,7 +50,7 @@ class UserRecommendations:
 
     def _load_friends(self, collection):
         for friend in collection.find():
-            self.friend_games[friend['userId']] = set(friend['owned'])
+            self.friend_games[friend['userId']] = set([int(owned) for owned in friend['owned']])
 
     def _process_users(self):
         self._process_owned_games(self.user_games)
