@@ -2,3 +2,6 @@ django==2.0
 requests
 pymongo
 beautifulsoup4
+djangorestframework
+markdown
+django-filter
