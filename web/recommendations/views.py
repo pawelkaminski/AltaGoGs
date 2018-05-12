@@ -1,19 +1,13 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.views.generic import TemplateView
 
 
-class GameDetail(APIView):
-    def get(self, request, game_id, format=None):
-        return Response({'hello': 'world'})
+class GameView(TemplateView):
+    template_name = 'recommendations/game.html'
 
 
-class SeriesDetail(APIView):
-    def get(self, request, series_id, fromat=None):
-        return Response({'hello': 'world'})
+class SeriesView(TemplateView):
+    template_name = 'recommendations/series.html'
 
 
-class UserDetail(APIView):
-    def get(self, request, user_id, format=None):
-        return Response({'hello': 'world'})
-
-
+class UserView(TemplateView):
+    template_name = 'recommendations/user.html'
