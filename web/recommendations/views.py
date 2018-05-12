@@ -144,21 +144,22 @@ class BaseView(TemplateView):
 
             games = sorted(games, key=lambda game: game['score'], reverse=True)
 
-            user_dict = {}
-
             user = user_collection.find_one(query)
             if not user:
                 user = friend_collection.find_one(query)
 
             return_dict = {
-                'owned': list(self.get_games(games_collection, user.get('owned', []))),
-                'played': list(self.get_games(games_collection, user.get('played', []))),
-                'wishlist': list(self.get_games(games_collection, user.get('wishlist', []))),
-                'ranked': list(self.get_games(games_collection, [key['itemId'] for key in user.get('ranked', [])])),
+                'owned': self._process_game_list(user.get('owned', []), games_collection),
+                'played': self._process_game_list(user.get('played', []), games_collection),
+                'wishlist': self._process_game_list(user.get('wishlist', []), games_collection),
+                'ranked': self._process_game_list([key['itemId'] for key in user.get('ranked', [])], games_collection),
                 'games': games,
             }
 
         return return_dict
+
+    def _process_game_list(self, game_list, games_collection):
+        return list(self.get_games(games_collection, [int(el) for el in game_list]))
 
 
 class GameView(BaseView):
