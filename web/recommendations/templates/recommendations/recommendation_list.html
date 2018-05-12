@@ -2,17 +2,12 @@
     <h2 class="text-center">{{title}}</h2>
     {% for sim_game in games %}
     {% if forloop.first %}<div class="row">{% endif %}
-    <div class="col-lg-2 fa-border">
+    <div class="col-lg-2 fa-border mover" url="{% url 'game'%}?game_id={{sim_game.id}}">
+        <h3>Score: {{ sim_game.score | multiply:100 | floatformat:2 }} %</h3>
         <p>
             <img src="{{ sim_game.img }}" class="w-100"/>
         </p>
         <h3>{{ sim_game.title }}</h3>
-        <p>
-            <a href="{% url 'game'%}?game_id={{sim_game.id}}">
-            <i class="fa fa-info-circle fa-5x btn"></i>
-            </a>
-        </p>
-        <h3>Score: {{ sim_game.score | multiply:100 | floatformat:2 }} %</h3>
     </div>
     {% if forloop.counter|divisibleby:6 %}</div><div class="row">{% endif %}
     {% if forloop.last %}</div>{% endif %}
