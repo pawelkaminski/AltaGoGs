@@ -9,10 +9,16 @@ class BaseView(TemplateView):
     def get_client(self) -> pymongo.MongoClient:
         return pymongo.MongoClient(self.mongo_path)
 
-    @staticmethod
-    def get_games(games_collection, ids_list):
+    @classmethod
+    def get_games(cls, games_collection, ids_list):
         game_fields = {'id': True, 'images.icon': True, 'images.logo': True, '_id': False, 'title': True}
         games = list(games_collection.find({'id': {'$in': ids_list}}, game_fields))
+        cls.games_change_img(games)
+
+        return games
+
+    @staticmethod
+    def games_change_img(games):
         for game in games:
             if 'images' in game:
                 game['image'] = game['images']
@@ -21,8 +27,6 @@ class BaseView(TemplateView):
                     game['img'] = game['image']['icon']
                 elif 'logo' in game['image']:
                     game['img'] = game['image']['logo']
-
-        return games
 
     def game_no_series(self, game_id, limit=16):
         with self.get_client() as client:
@@ -271,6 +275,7 @@ class SearchView(BaseView):
             # db.product.createIndex({'title': 'text'})
             request_text = request.GET['game_name']
             items = list(collection.find({'$text': {'$search': f'"{request_text}"'}}))
+            self.games_change_img(items)
 
         response.context_data['games'] = items
         return response
