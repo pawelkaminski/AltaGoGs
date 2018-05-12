@@ -1,0 +1,38 @@
+{% if game %}
+
+<center>
+<div>
+    <h1>{{ game.title }}</h1>
+    <p>
+        <img src="{{ game.images.icon }}"/>
+    </p>
+</div>
+</center>
+
+{% if series %}
+
+<div class="container">
+    <h2 class="text-center">Similar in series</h2>
+    {% for _, sim_game in series.items %}
+    {% if forloop.first %}<div class="row">{% endif %}
+    <div class="col-lg-3 fa-border">
+        <h3>{{ sim_game.title }}</h3>
+        <p>
+            <img src="{{ sim_game.images.icon}}"/>
+        </p>
+        <p>
+            <a href="{% url 'game'%}?game_id={{sim_game.id}}">
+            <i class="fa fa-info-circle fa-5x btn"></i>
+            </a>
+        </p>
+    </div>
+    {% if forloop.counter|divisibleby:4 %}</div><div class="row">{% endif %}
+    {% if forloop.last %}</div>{% endif %}
+{% endfor %}
+</div>
+
+{% endif %}
+
+{% else %}
+<h1>No game</h1>
+{% endif %}
