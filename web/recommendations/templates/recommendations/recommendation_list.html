@@ -12,7 +12,7 @@
             <i class="fa fa-info-circle fa-5x btn"></i>
             </a>
         </p>
-        <p>Score: {{ sim_game.score }}</p>
+        <h3>Score: {{ sim_game.score | multiply:100 | floatformat:2 }} %</h3>
     </div>
     {% if forloop.counter|divisibleby:6 %}</div><div class="row">{% endif %}
     {% if forloop.last %}</div>{% endif %}
